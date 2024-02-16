@@ -34,6 +34,7 @@ from streamdeck_ui.stream_deck_monitor import StreamDeckMonitor
 
 class KeySignalEmitter(QObject):
     key_pressed = Signal(str, int, bool)
+    dial_changed = Signal(str, StreamDeck.DialEventType, int, int)
 
 
 class StreamDeckSignalEmitter(QObject):
@@ -154,6 +155,18 @@ class StreamDeckServer:
             self.display_handlers[serial_number].set_keypress(key, state)
             self.streamdeck_keys.key_pressed.emit(serial_number, key, state)
 
+    def _dial_change_callback(self, serial_number: str, _deck: StreamDeck.StreamDeck, dial: int, event_type: StreamDeck.DialEventType, value):
+        """Callback whenever a key is pressed.
+
+        Stream Deck key events fire on a background thread. Emit a signal
+        to bring it back to UI thread, so we can use Qt objects for timers etc.
+        Since multiple keys could fire simultaneously, we need to protect
+        shared state with a lock
+        """
+        with self.key_event_lock:
+            self.display_handlers[serial_number].set_keypress(dial, value)
+            self.streamdeck_keys.dial_changed.emit(serial_number, event_type, dial, value)
+
     def get_display_timeout(self, serial_number: str) -> int:
         """Returns the amount of time in seconds before the display gets dimmed."""
         if serial_number not in self.state:
@@ -200,6 +213,8 @@ class StreamDeckServer:
         self._initialize_stream_deck_page_state(serial_number, 0, streamdeck.key_count())
 
         streamdeck.set_key_callback(partial(self._key_change_callback, serial_number))
+        streamdeck.set_dial_callback(partial(self._dial_change_callback, serial_number))
+        # streamdeck.set_dial_callback(self._dial_change_callback)
         self._update_streamdeck_filters(serial_number)
 
         self.dimmers[serial_number] = Dimmer(
@@ -312,6 +327,7 @@ class StreamDeckServer:
         del self.decks_map_id_to_serial[deck_id]
 
     def start(self):
+        print("wut", flush=True)
         if not self.monitor:
             self.monitor = StreamDeckMonitor(self.lock, self._on_steam_deck_attached, self._on_steam_deck_detached)
         self.monitor.start()

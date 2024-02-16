@@ -114,6 +114,7 @@ class StreamDeckMonitor:
                 streamdeck_id = streamdeck.id()
                 if streamdeck_id not in self.streamdecks:
                     try:
+                        print(f"found streamdeck {streamdeck_id}")
                         self.attached(streamdeck_id, streamdeck)
                         self.streamdecks[streamdeck_id] = streamdeck
                         showed_open_help = False

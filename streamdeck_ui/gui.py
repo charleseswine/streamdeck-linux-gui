@@ -6,6 +6,7 @@ import sys
 from functools import partial
 from subprocess import Popen  # nosec - Need to allow users to specify arbitrary commands
 from typing import Dict, List, Optional, Union
+from StreamDeck.Devices import StreamDeck
 
 from importlib_metadata import PackageNotFoundError, version
 from PySide6.QtCore import QMimeData, QSettings, QSignalBlocker, QSize, Qt, QTimer, QUrl
@@ -177,8 +178,17 @@ class DraggableButton(QToolButton):
         self.setStyleSheet(BUTTON_STYLE)
 
 
+def handle_dial_event(ui, deck_id: str, event_type: StreamDeck.DialEventType, dial_id: int, value) -> None:
+    if event_type is StreamDeck.DialEventType.PUSH:
+        print(f"handle_dial_event {StreamDeck.DialEventType.PUSH} {dial_id} {bool(value)}")
+    elif event_type is StreamDeck.DialEventType.TURN:
+        print(f"handle_dial_event {StreamDeck.DialEventType.TURN} {dial_id} {value}")
+    else:
+        print("unknown event type")
+
 def handle_keypress(ui, deck_id: str, key: int, state: bool) -> None:
     # TODO: Handle both key down and key up events in future.
+    print(f"handle_keypress {key} {state}")
     if state:
         if api.reset_dimmer(deck_id):
             return
@@ -1221,7 +1231,9 @@ def create_main_window(api: StreamDeckServer, app: QApplication) -> MainWindow:
     # allow call redraw_button from ui instance
     ui.redraw_button = redraw_button  # type: ignore [attr-defined]
 
+    # api.streamdeck_keys.key_pressed.connect(partial(handle_keypress, ui))
     api.streamdeck_keys.key_pressed.connect(partial(handle_keypress, ui))
+    api.streamdeck_keys.dial_changed.connect(partial(handle_dial_event, ui))
 
     ui.device_list.currentIndexChanged.connect(partial(build_device, ui))
     ui.pages.currentChanged.connect(lambda: handle_change_page())
@@ -1385,7 +1397,9 @@ def start(_exit: bool = False) -> None:
 
             # read the state file if it exists
             if os.path.isfile(STATE_FILE):
+                print("HELLO4")
                 api.open_config(STATE_FILE)
+            print("yea boi 3")
             api.start()
 
             cli = CLIStreamDeckServer(api, main_window.ui)

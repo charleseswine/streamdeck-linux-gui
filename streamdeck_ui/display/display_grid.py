@@ -114,6 +114,12 @@ class DisplayGrid:
                 if isinstance(filter[0], KeypressFilter):
                     filter[0].active = active
 
+    def set_dial(self, dial: int, active: bool):
+        with self.lock:
+            for filter in self.pages[self.current_page][dial].filters:
+                if isinstance(filter[0], KeypressFilter):
+                    filter[0].active = active
+
     def synchronize(self):
         # Wait until the next cycle is complete.
         # To *guarantee* that you have one complete pass, two waits are needed.
